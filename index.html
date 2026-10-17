@@ -46,6 +46,18 @@
       <ul id="players"></ul>
 
       <div id="lobby" hidden>
+        <form id="settings">
+          <label for="start-cards">Cards on the table at the start</label>
+          <select id="start-cards">
+            <option value="12">12 (like regular Set)</option>
+            <option value="15">15</option>
+            <option value="18">18</option>
+            <option value="21">21</option>
+            <option value="24">24</option>
+          </select>
+          <label class="check"><input id="hints-on" type="checkbox"> Allow hints (everyone has to agree to use one)</label>
+        </form>
+        <p id="settings-summary" class="muted"></p>
         <p>Wait for everyone to join, then deal.</p>
         <button id="deal-button" type="button">Deal cards</button>
       </div>
@@ -55,13 +67,14 @@
         <div id="board"></div>
         <div id="controls">
           <button id="vote-button" type="button" class="secondary"></button>
+          <button id="hint-button" type="button" class="secondary" hidden></button>
           <span id="deck-count" class="muted"></span>
         </div>
         <div id="game-over" hidden>
           <h2 id="winner"></h2>
           <button id="again-button" type="button">Play again</button>
         </div>
-        <p class="muted small"><button id="new-game-link" class="link" type="button">Start over with a new deal</button></p>
+        <p class="muted small"><button id="new-game-link" class="link" type="button">End this game and start a new one</button></p>
       </div>
     </section>
   </main>

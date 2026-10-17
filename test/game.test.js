@@ -62,4 +62,55 @@ G.applyAction(t, 'a', { type: 'vote' });
 G.applyAction(t, 'b', { type: 'leave' });
 assert.strictEqual(t.board.length, 15);
 
+// The host picks how many cards start on the table; the board shrinks back to it.
+for (const size of G.START_SIZES) {
+  const u = G.createState();
+  G.applyAction(u, 'h', { type: 'join', name: 'Host' });
+  G.applyAction(u, 'g', { type: 'join', name: 'Guest' });
+  assert.ok(!G.applyAction(u, 'g', { type: 'settings', startCards: 21 }).ok, 'guests cannot change settings');
+  assert.ok(G.applyAction(u, 'h', { type: 'settings', startCards: size }).ok);
+  G.applyAction(u, 'h', { type: 'deal' });
+  assert.strictEqual(u.board.length, size);
+  G.applyAction(u, 'h', { type: 'vote' }); G.applyAction(u, 'g', { type: 'vote' });
+  if (!u.over) assert.strictEqual(u.board.length, size + 3);
+  let guard = 0;
+  while (!u.over && guard++ < 500) {
+    const sets = G.findSets(u.board);
+    if (!sets.length) { G.applyAction(u, 'h', { type: 'vote' }); G.applyAction(u, 'g', { type: 'vote' }); continue; }
+    const before = u.board.length;
+    G.applyAction(u, 'h', { type: 'claim', cards: sets[0] });
+    if (u.deck.length) assert.ok(u.board.length >= size && u.board.length <= Math.max(before, size));
+  }
+  assert.ok(u.over);
+  assert.strictEqual(u.players.h.score * 3 + u.board.length, 243);
+}
+
+// Hints need everyone's agreement, are off unless the host turns them on,
+// and show one card of a set, then a second card of the same set.
+{
+  const h = G.createState();
+  G.applyAction(h, 'h', { type: 'join', name: 'Host' });
+  G.applyAction(h, 'g', { type: 'join', name: 'Guest' });
+  G.applyAction(h, 'h', { type: 'deal' });
+  assert.ok(!G.applyAction(h, 'h', { type: 'hint' }).ok, 'hints off by default');
+  G.applyAction(h, 'h', { type: 'settings', hints: true });
+  let guard = 0;
+  while (!G.findSets(h.board).length && guard++ < 20) { G.applyAction(h, 'h', { type: 'vote' }); G.applyAction(h, 'g', { type: 'vote' }); }
+  G.applyAction(h, 'h', { type: 'hint' });
+  assert.strictEqual(h.hint, null, 'one vote is not enough');
+  G.applyAction(h, 'g', { type: 'hint' });
+  assert.strictEqual(h.hint.shown, 1);
+  assert.ok(G.isSet(...h.hint.set) && h.hint.set.every((c) => h.board.includes(c)));
+  G.applyAction(h, 'h', { type: 'hint' }); G.applyAction(h, 'g', { type: 'hint' });
+  assert.strictEqual(h.hint.shown, 2);
+  assert.ok(!G.applyAction(h, 'h', { type: 'hint' }).ok, 'no third card');
+  G.applyAction(h, 'g', { type: 'claim', cards: h.hint.set });
+  assert.strictEqual(h.hint, null, 'hint clears when the board changes');
+
+  // With no set on the table, the hint says so.
+  h.board = [0, 1, 3, 4];
+  G.applyAction(h, 'h', { type: 'hint' }); G.applyAction(h, 'g', { type: 'hint' });
+  assert.ok(h.hint.none, JSON.stringify(h.hint));
+}
+
 console.log('All game tests passed.');

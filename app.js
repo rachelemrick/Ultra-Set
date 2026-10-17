@@ -89,7 +89,7 @@
     isHost = true;
     showGame();
     if (saved && saved.state) {
-      state = saved.state;
+      state = G.upgrade(saved.state);
       roomCode = saved.code;
       Object.values(state.players).forEach((p) => { p.online = false; });
     } else {
@@ -208,7 +208,7 @@
     });
     conn.on('data', (msg) => {
       if (msg.type === 'state') {
-        state = msg.state;
+        state = G.upgrade(msg.state);
         render();
       } else if (msg.type === 'error') {
         showError(msg.error);
@@ -258,8 +258,11 @@
   });
 
   $('vote-button').addEventListener('click', () => sendAction({ type: 'vote' }));
+  $('hint-button').addEventListener('click', () => sendAction({ type: 'hint' }));
+  $('start-cards').addEventListener('change', (e) => sendAction({ type: 'settings', startCards: Number(e.target.value) }));
+  $('hints-on').addEventListener('change', (e) => sendAction({ type: 'settings', hints: e.target.checked }));
   $('deal-button').addEventListener('click', () => sendAction({ type: 'deal' }));
-  $('again-button').addEventListener('click', () => sendAction({ type: 'deal' }));
+  $('again-button').addEventListener('click', () => sendAction({ type: 'lobby' }));
   // Two clicks to start over, so a stray click doesn't wipe the scores.
   let startOverTimer = null;
   $('new-game-link').addEventListener('click', () => {
@@ -267,11 +270,11 @@
     if (startOverTimer) {
       clearTimeout(startOverTimer);
       startOverTimer = null;
-      link.textContent = 'Start over with a new deal';
-      sendAction({ type: 'deal' });
+      link.textContent = 'End this game and start a new one';
+      sendAction({ type: 'lobby' });
     } else {
-      link.textContent = 'Click again to start over (scores go back to zero)';
-      startOverTimer = setTimeout(() => { startOverTimer = null; link.textContent = 'Start over with a new deal'; }, 4000);
+      link.textContent = 'Click again to end this game';
+      startOverTimer = setTimeout(() => { startOverTimer = null; link.textContent = 'End this game and start a new one'; }, 4000);
     }
   });
   $('copy-button').addEventListener('click', () => {
@@ -309,9 +312,14 @@
   function render() {
     if (!state) return;
     renderPlayers();
+    renderSettings();
     $('lobby').hidden = state.started;
     $('table').hidden = !state.started;
-    if (!state.started) return;
+    if (!state.started) {
+      lastBoard = [];
+      $('board').innerHTML = '';
+      return;
+    }
 
     // Drop selections whose cards are gone.
     selected = selected.filter((c) => state.board.includes(c));
@@ -334,6 +342,18 @@
       : "Can't find a set? Add a row";
     vote.classList.toggle('active', iVoted);
     vote.disabled = state.over || state.deck.length === 0;
+
+    const hint = $('hint-button');
+    hint.hidden = !state.settings.hints;
+    const hintVoted = state.hintVotes.filter((v) => online.includes(v)).length;
+    const iHinted = state.hintVotes.includes(clientId);
+    const hintUsedUp = state.hint && (state.hint.none || state.hint.shown >= 2);
+    const hintLabel = state.hint && state.hint.set ? 'Another hint' : 'Hint';
+    hint.textContent = online.length > 1
+      ? (iHinted ? 'Waiting for others to agree (' + hintVoted + '/' + online.length + ')' : hintLabel + ' (' + hintVoted + '/' + online.length + ' agree)')
+      : hintLabel;
+    hint.classList.toggle('active', iHinted);
+    hint.disabled = state.over || !!hintUsedUp;
     $('deck-count').textContent = state.deck.length + ' cards left in the deck';
 
     $('game-over').hidden = !state.over;
@@ -345,6 +365,16 @@
         ? "It's a tie between " + winners.join(' and ') + '!'
         : winners[0] + ' wins with ' + best + ' sets!';
     }
+  }
+
+  function renderSettings() {
+    const amHost = state.hostId === clientId;
+    $('settings').hidden = !amHost;
+    $('start-cards').value = String(state.settings.startCards);
+    $('hints-on').checked = state.settings.hints;
+    $('settings-summary').hidden = amHost;
+    $('settings-summary').textContent = 'The host is starting with ' + state.settings.startCards + ' cards' +
+      (state.settings.hints ? ', with hints allowed.' : ' and no hints.');
   }
 
   function renderPlayers() {
@@ -390,8 +420,10 @@
       board.style.setProperty('--cols', Math.ceil(state.board.length / 3));
       lastBoard = state.board.slice();
     }
+    const hinted = state.hint && state.hint.set ? state.hint.set.slice(0, state.hint.shown) : [];
     for (const el of board.children) {
       el.classList.toggle('selected', selected.includes(Number(el.dataset.id)));
+      el.classList.toggle('hinted', hinted.includes(Number(el.dataset.id)));
     }
   }
 })();

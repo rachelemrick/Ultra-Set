@@ -129,6 +129,24 @@ input {
   75% { transform: translateX(4px); }
 }
 
+#settings { display: grid; gap: 6px; max-width: 420px; margin-bottom: 8px; }
+#settings label { font-weight: 600; }
+#settings label.check { font-weight: 400; display: flex; gap: 8px; align-items: center; margin-top: 6px; }
+#settings select { font: inherit; padding: 6px 8px; border-radius: 8px; border: 1px solid var(--card-border); background: #fff; }
+
+.card { position: relative; }
+.card.hinted { border-color: var(--accent); border-style: dashed; }
+.card.hinted::after {
+  content: "hint";
+  position: absolute;
+  top: 6px;
+  right: 8px;
+  font: 700 0.7rem system-ui, sans-serif;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
 #controls {
   display: flex;
   flex-wrap: wrap;
