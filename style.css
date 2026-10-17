@@ -1,0 +1,146 @@
+:root {
+  --bg: #f4f1ea;
+  --text: #2a2a2a;
+  --muted: #6b6b6b;
+  --card: #ffffff;
+  --card-border: #d9d4c7;
+  --accent: #3157c8;
+  --select: #f2b705;
+  --good: #0b9447;
+  --bad: #d6283a;
+}
+
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font: 16px/1.4 system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+
+main {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 16px;
+}
+
+h1 { margin: 0 0 12px; font-size: 1.6rem; letter-spacing: 0.02em; }
+h2 { margin: 0 0 8px; }
+
+button {
+  font: inherit;
+  padding: 8px 16px;
+  border-radius: 8px;
+  border: 1px solid var(--accent);
+  background: var(--accent);
+  color: #fff;
+  cursor: pointer;
+}
+button.secondary { background: #fff; color: var(--accent); }
+button.secondary.active { background: var(--accent); color: #fff; }
+button.link { background: none; border: none; padding: 0; color: var(--muted); text-decoration: underline; }
+button:disabled { opacity: 0.5; cursor: default; }
+
+input {
+  font: inherit;
+  padding: 8px 10px;
+  border: 1px solid var(--card-border);
+  border-radius: 8px;
+  min-width: 0;
+}
+
+.muted { color: var(--muted); }
+.small { font-size: 0.85rem; }
+
+#name-form { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 12px; }
+#name-form label { width: 100%; font-weight: 600; }
+#name-input { flex: 1 1 180px; }
+
+#invite { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 4px; }
+#invite span { width: 100%; }
+#invite-link { flex: 1 1 200px; }
+#connection { margin: 4px 0 8px; font-size: 0.9rem; }
+
+#players {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 12px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+#players li {
+  background: #fff;
+  border: 1px solid var(--card-border);
+  border-radius: 999px;
+  padding: 4px 12px;
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+#players li.offline { opacity: 0.5; }
+#players li.me { border-color: var(--accent); }
+#players .score { font-weight: 700; }
+#players .wants-row { font-size: 0.8rem; color: var(--accent); }
+
+#message { min-height: 1.4em; margin: 0 0 8px; font-weight: 600; }
+#message.bad { color: var(--bad); }
+#message.good { color: var(--good); }
+
+#board {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+}
+
+/* On wider screens, lay the cards out like a table: three rows, with
+   extra cards making the rows longer. */
+@media (min-width: 720px) {
+  #board { grid-template-columns: repeat(var(--cols, 4), minmax(0, 190px)); }
+}
+
+.card {
+  background: var(--card);
+  border: 2px solid var(--card-border);
+  border-radius: 10px;
+  padding: 0;
+  aspect-ratio: 7 / 5;
+  display: block;
+  width: 100%;
+  cursor: pointer;
+  transition: transform 0.08s, border-color 0.08s;
+}
+.card svg { width: 100%; height: 100%; display: block; }
+.card .corner { font: 700 17px system-ui, sans-serif; fill: #555; }
+.card:hover { border-color: #b8b09c; }
+.card.selected { border-color: var(--select); box-shadow: 0 0 0 3px var(--select); transform: translateY(-2px); }
+.card.fresh { animation: fresh 1.2s ease-out; }
+.card.wrong { animation: shake 0.35s; }
+
+@keyframes fresh {
+  from { box-shadow: 0 0 0 4px var(--good); }
+  to { box-shadow: 0 0 0 0 transparent; }
+}
+@keyframes shake {
+  25% { transform: translateX(-4px); }
+  75% { transform: translateX(4px); }
+}
+
+#controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+  margin: 14px 0 8px;
+}
+
+#game-over {
+  background: #fff;
+  border: 1px solid var(--card-border);
+  border-radius: 10px;
+  padding: 16px;
+  margin: 12px 0;
+  text-align: center;
+}

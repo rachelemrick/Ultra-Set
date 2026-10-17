@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Ultra Set</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <!-- Stripe fills shared by every card. -->
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+    <defs>
+      <pattern id="stripes-red" patternUnits="userSpaceOnUse" width="5" height="5">
+        <line x1="0" y1="2.5" x2="5" y2="2.5" stroke="#d6283a" stroke-width="1.6"/>
+      </pattern>
+      <pattern id="stripes-green" patternUnits="userSpaceOnUse" width="5" height="5">
+        <line x1="0" y1="2.5" x2="5" y2="2.5" stroke="#0b9447" stroke-width="1.6"/>
+      </pattern>
+      <pattern id="stripes-purple" patternUnits="userSpaceOnUse" width="5" height="5">
+        <line x1="0" y1="2.5" x2="5" y2="2.5" stroke="#6a2ca0" stroke-width="1.6"/>
+      </pattern>
+    </defs>
+  </svg>
+
+  <main>
+    <h1>Ultra Set</h1>
+
+    <section id="welcome" hidden>
+      <p id="welcome-intro">Find three cards where every feature (color, shape, number, shading and corner letter) is either all the same or all different.</p>
+      <form id="name-form">
+        <label for="name-input">Your name</label>
+        <input id="name-input" maxlength="24" autocomplete="nickname" required>
+        <button id="start-button" type="submit">Start a new game</button>
+      </form>
+      <button id="resume-button" class="secondary" hidden>Resume my last game</button>
+    </section>
+
+    <section id="game" hidden>
+      <div id="invite" hidden>
+        <span>Send this link to your friend:</span>
+        <input id="invite-link" readonly>
+        <button id="copy-button" class="secondary" type="button">Copy</button>
+      </div>
+      <p id="connection" class="muted"></p>
+
+      <ul id="players"></ul>
+
+      <div id="lobby" hidden>
+        <p>Wait for everyone to join, then deal.</p>
+        <button id="deal-button" type="button">Deal cards</button>
+      </div>
+
+      <div id="table" hidden>
+        <p id="message" role="status" aria-live="polite"></p>
+        <div id="board"></div>
+        <div id="controls">
+          <button id="vote-button" type="button" class="secondary"></button>
+          <span id="deck-count" class="muted"></span>
+        </div>
+        <div id="game-over" hidden>
+          <h2 id="winner"></h2>
+          <button id="again-button" type="button">Play again</button>
+        </div>
+        <p class="muted small"><button id="new-game-link" class="link" type="button">Start over with a new deal</button></p>
+      </div>
+    </section>
+  </main>
+
+  <script src="vendor/peerjs.min.js"></script>
+  <script src="game.js"></script>
+  <script src="cards.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
