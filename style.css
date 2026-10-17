@@ -1,9 +1,10 @@
 :root {
-  --bg: #f4f1ea;
+  color-scheme: light;
+  --bg: #e6ebe8;
   --text: #2a2a2a;
   --muted: #6b6b6b;
   --card: #ffffff;
-  --card-border: #d9d4c7;
+  --card-border: #cfd6d2;
   --accent: #3157c8;
   --select: #f2b705;
   --good: #0b9447;
@@ -114,7 +115,7 @@ input {
 }
 .card svg { width: 100%; height: 100%; display: block; }
 .card .corner { font: 700 17px system-ui, sans-serif; fill: #555; }
-.card:hover { border-color: #b8b09c; }
+.card:hover { border-color: #9fb0a8; }
 .card.selected { border-color: var(--select); box-shadow: 0 0 0 3px var(--select); transform: translateY(-2px); }
 .card.fresh { animation: fresh 1.2s ease-out; }
 .card.wrong { animation: shake 0.35s; }

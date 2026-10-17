@@ -103,6 +103,10 @@
   }
 
   function openHostPeer() {
+    if (typeof Peer === 'undefined') {
+      setConnection('This copy is for playing on your own; online play needs the full site.');
+      return;
+    }
     setConnection('Setting up your game room…');
     peer = new Peer(ID_PREFIX + roomCode, peerOptions);
     peer.on('open', () => {
@@ -256,8 +260,19 @@
   $('vote-button').addEventListener('click', () => sendAction({ type: 'vote' }));
   $('deal-button').addEventListener('click', () => sendAction({ type: 'deal' }));
   $('again-button').addEventListener('click', () => sendAction({ type: 'deal' }));
+  // Two clicks to start over, so a stray click doesn't wipe the scores.
+  let startOverTimer = null;
   $('new-game-link').addEventListener('click', () => {
-    if (confirm('Start over with a new deal? Scores go back to zero for everyone.')) sendAction({ type: 'deal' });
+    const link = $('new-game-link');
+    if (startOverTimer) {
+      clearTimeout(startOverTimer);
+      startOverTimer = null;
+      link.textContent = 'Start over with a new deal';
+      sendAction({ type: 'deal' });
+    } else {
+      link.textContent = 'Click again to start over (scores go back to zero)';
+      startOverTimer = setTimeout(() => { startOverTimer = null; link.textContent = 'Start over with a new deal'; }, 4000);
+    }
   });
   $('copy-button').addEventListener('click', () => {
     const input = $('invite-link');
