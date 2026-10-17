@@ -27,7 +27,7 @@ The PeerJS library is included in `vendor/` (MIT licence, see `vendor/peerjs-LIC
 ## Putting it online with GitHub Pages
 
 In the repository on GitHub: **Settings → Pages → Build and deployment**, set **Source** to "Deploy from a branch", pick the `main` branch and the `/ (root)` folder, and save.
-After a minute the game is at `https://rachelemrick.github.io/ultra-set/`.
+After a minute the game is at `https://rachelemrick.github.io/Ultra-Set/`.
 
 ## Running the tests
 
