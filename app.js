@@ -1,16 +1,15 @@
 // Page wiring and two-player networking.
 //
 // The person who starts a game is the host: their browser keeps the real
-// game state and applies everyone's moves. Friends connect straight to the
-// host's browser with PeerJS (WebRTC), send their moves, and get the
-// updated state back. No server of our own is needed, so the whole thing
-// can live on GitHub Pages.
+// game state and applies everyone's moves. Friends send their moves to the
+// host and get the updated state back, through the public relays in
+// relay.js. No server of our own is needed, so the whole thing can live
+// on GitHub Pages.
 (function () {
   'use strict';
 
   const G = window.UltraSet;
   const $ = (id) => document.getElementById(id);
-  const ID_PREFIX = 'ultra-set-';
   const params = new URLSearchParams(location.search);
   const joinCode = (params.get('join') || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
 
@@ -26,21 +25,22 @@
     storage.set('ultra-set-client', clientId);
   }
 
-  // Lets tests point at a local PeerJS server, e.g. ?peerhost=localhost&peerport=9000
-  const peerOptions = params.get('peerhost')
-    ? { host: params.get('peerhost'), port: Number(params.get('peerport') || 9000), path: '/', secure: false }
-    : {};
+  // Lets tests use local relays, e.g. ?relay=ws://127.0.0.1:8888,ws://127.0.0.1:8889
+  const brokers = params.get('relay') ? params.get('relay').split(',') : (window.UltraSetRelay ? window.UltraSetRelay.DEFAULT_BROKERS : []);
+  const HEARTBEAT_MS = 5000;
+  const GUEST_TIMEOUT_MS = 20000;  // host marks a silent guest offline after this
+  const HOST_TIMEOUT_MS = 20000;   // guest says the host is away after this
 
   let isHost = false;
-  let peer = null;
-  let hostConn = null;            // guest: connection to the host
-  const guests = new Map();       // host: connection -> clientId
+  let relay = null;
+  const lastSeen = new Map();     // host: clientId -> last time we heard from them
+  const seenIds = [];             // recent message ids, to drop repeats from other relays
+  let hostHeardAt = 0;            // guest: last live message from the host
   let state = null;
   let roomCode = null;
   let selected = [];
   let lastBoard = [];
   let myName = storage.get('ultra-set-name') || '';
-  let reconnectTimer = null;
   let pendingClaim = null;        // three cards sent to the host, awaiting an answer
 
   // ---------- Welcome screen ----------
@@ -99,73 +99,98 @@
     G.applyAction(state, clientId, { type: 'join', name: myName });
     saveHost();
     render();
-    openHostPeer();
+    openHostRoom();
   }
 
-  function openHostPeer() {
-    if (typeof Peer === 'undefined') {
+  function topic(name) {
+    return 'ultra-set/v1/' + roomCode + '/' + name;
+  }
+
+  function newId() {
+    return Math.random().toString(36).slice(2, 12);
+  }
+
+  // True the first time we see this id; repeats come from the other relays.
+  function firstSighting(id) {
+    if (!id) return true;
+    if (seenIds.includes(id)) return false;
+    seenIds.push(id);
+    if (seenIds.length > 300) seenIds.shift();
+    return true;
+  }
+
+  function openRelay(onStatus) {
+    if (!window.mqtt || !window.UltraSetRelay) {
       setConnection('This copy is for playing on your own; online play needs the full site.');
-      return;
+      return null;
     }
+    return window.UltraSetRelay.createRelay(brokers, onStatus);
+  }
+
+  function openHostRoom() {
     setConnection('Setting up your game room…');
-    peer = new Peer(ID_PREFIX + roomCode, peerOptions);
-    peer.on('open', () => {
-      const link = location.origin + location.pathname + '?join=' + roomCode;
-      $('invite-link').value = link;
-      $('invite').hidden = false;
-      setConnection('Your game room is open. You can also play on your own.');
-    });
-    peer.on('connection', (conn) => {
-      conn.on('data', (msg) => onGuestMessage(conn, msg));
-      conn.on('close', () => onGuestGone(conn));
-      conn.on('error', () => onGuestGone(conn));
-    });
-    peer.on('disconnected', () => {
-      // Lost the signalling server; existing games keep working, but new
-      // friends can't join until we reconnect.
-      setConnection('Reconnecting the game room…');
-      setTimeout(() => { if (peer && !peer.destroyed) peer.reconnect(); }, 2000);
-    });
-    peer.on('error', (err) => {
-      if (err.type === 'unavailable-id') {
-        // Someone else has this room code; pick another.
-        peer.destroy();
-        roomCode = newCode();
-        saveHost();
-        openHostPeer();
-      } else if (err.type === 'network' || err.type === 'server-error' || err.type === 'socket-error') {
-        setConnection("Can't reach the connection service right now. You can still play on your own; refresh to try again.");
-      } else if (err.type === 'browser-incompatible') {
-        setConnection("This browser can't do online play. Try Chrome, Firefox, Safari or Edge.");
+    let everConnected = false;
+    relay = openRelay((count) => {
+      if (count > 0) {
+        if (!everConnected) publishState();
+        everConnected = true;
+        $('invite-link').value = location.origin + location.pathname + '?join=' + roomCode;
+        $('invite').hidden = false;
+        setConnection('Your game room is open. You can also play on your own.');
+      } else {
+        setConnection(everConnected
+          ? 'Lost the connection to the online service. Reconnecting…'
+          : 'Trying to reach the online service…');
       }
     });
+    if (!relay) return;
+    setTimeout(() => {
+      if (!everConnected) setConnection("Can't reach the online service from this network. You can still play on your own; it keeps trying in the background.");
+    }, 12000);
+    relay.subscribe(topic('action'), onGuestMessage);
+    setInterval(hostHeartbeat, HEARTBEAT_MS);
   }
 
-  function onGuestMessage(conn, msg) {
-    if (!msg || msg.type !== 'action' || !msg.action) return;
-    const cid = String(msg.clientId || conn.peer);
-    if (msg.action.type === 'join') guests.set(conn, cid);
-    if (!guests.has(conn)) return;
-    const result = G.applyAction(state, cid, msg.action);
-    if (!result.ok && result.error) conn.send({ type: 'error', error: result.error });
+  function onGuestMessage(msg, info) {
+    if (info.retained || !msg || !msg.action || !msg.clientId || !firstSighting(msg.id)) return;
+    const cid = String(msg.clientId);
+    if (cid === clientId) return;
+    lastSeen.set(cid, Date.now());
+    let action = msg.action;
+    if (action.type === 'ping') {
+      // A ping from someone the game doesn't have online yet counts as joining.
+      const p = state.players[cid];
+      if (p && p.online) return;
+      action = { type: 'join', name: msg.name };
+    }
+    const result = G.applyAction(state, cid, action);
+    if (!result.ok && result.error) relay.publish(topic('to/' + cid), { id: newId(), error: result.error });
     if (result.ok) afterHostChange();
   }
 
-  function onGuestGone(conn) {
-    const cid = guests.get(conn);
-    guests.delete(conn);
-    // Only mark them offline if they don't have another live connection.
-    if (cid && ![...guests.values()].includes(cid)) {
-      G.applyAction(state, cid, { type: 'leave' });
-      afterHostChange();
-    }
+  // Resend the state so guests know the host is still here, and notice
+  // guests who have gone quiet.
+  function hostHeartbeat() {
+    const now = Date.now();
+    let changed = false;
+    Object.keys(state.players).forEach((cid) => {
+      if (cid === clientId || !state.players[cid].online) return;
+      if (now - (lastSeen.get(cid) || 0) > GUEST_TIMEOUT_MS) {
+        G.applyAction(state, cid, { type: 'leave' });
+        changed = true;
+      }
+    });
+    if (changed) afterHostChange();
+    else publishState();
+  }
+
+  function publishState() {
+    if (relay) relay.publish(topic('state'), { id: newId(), state }, { retain: true });
   }
 
   function afterHostChange() {
     saveHost();
-    for (const conn of guests.keys()) {
-      if (conn.open) conn.send({ type: 'state', state });
-    }
+    publishState();
     render();
   }
 
@@ -181,52 +206,51 @@
     showGame();
     setConnection('Connecting to the game…');
     render();
-    peer = new Peer(peerOptions);
-    peer.on('open', connectToHost);
-    peer.on('disconnected', () => {
-      setTimeout(() => { if (peer && !peer.destroyed) peer.reconnect(); }, 2000);
+    relay = openRelay((count) => {
+      if (count === 0) setConnection('Trying to reach the online service…');
+      else if (!hostHeardAt) setConnection('Looking for the game…');
+      if (count > 0) ping();
     });
-    peer.on('error', (err) => {
-      if (err.type === 'peer-unavailable') {
-        setConnection("Can't find that game. The host may have closed it; trying again…");
-        scheduleReconnect();
-      } else if (err.type === 'network' || err.type === 'server-error' || err.type === 'socket-error') {
-        setConnection("Can't reach the connection service. Trying again…");
-        scheduleReconnect();
+    if (!relay) return;
+    relay.subscribe(topic('state'), onHostState);
+    relay.subscribe(topic('to/' + clientId), (msg, info) => {
+      if (!info.retained && msg.error && firstSighting(msg.id)) showError(msg.error);
+    });
+    setInterval(() => { ping(); checkHost(); }, HEARTBEAT_MS);
+    setTimeout(() => {
+      if (!relay.connectedCount()) {
+        setConnection("Can't reach the online service from this network. It keeps trying; a different Wi-Fi or your phone's data may help.");
+      } else if (!hostHeardAt) {
+        setConnection("Can't find that game yet. Check that the host has the game open; it keeps looking.");
       }
-    });
+    }, 12000);
+    addEventListener('pagehide', () => sendAction({ type: 'leave' }));
   }
 
-  function connectToHost() {
-    clearTimeout(reconnectTimer);
-    if (!peer || peer.destroyed || peer.disconnected) return scheduleReconnect();
-    const conn = peer.connect(ID_PREFIX + roomCode, { reliable: true });
-    hostConn = conn;
-    conn.on('open', () => {
-      setConnection('Connected.');
-      sendAction({ type: 'join', name: myName });
-    });
-    conn.on('data', (msg) => {
-      if (msg.type === 'state') {
-        state = G.upgrade(msg.state);
-        render();
-      } else if (msg.type === 'error') {
-        showError(msg.error);
-      }
-    });
-    conn.on('close', () => {
-      if (hostConn !== conn) return;
-      hostConn = null;
+  function onHostState(msg, info) {
+    if (!msg || !msg.state || !firstSighting(msg.id)) return;
+    // A saved copy from the relay shows the table right away, but only a
+    // live message proves the host is here.
+    if (!info.retained) {
+      const wasAway = !hostHeardAt || Date.now() - hostHeardAt > HOST_TIMEOUT_MS;
+      hostHeardAt = Date.now();
+      if (wasAway) setConnection('Connected.');
+    }
+    if (state && msg.state.version < state.version) return;
+    state = G.upgrade(msg.state);
+    if (!info.retained && !(state.players[clientId] && state.players[clientId].online)) ping();
+    render();
+  }
+
+  function checkHost() {
+    if (hostHeardAt && Date.now() - hostHeardAt > HOST_TIMEOUT_MS) {
       pendingClaim = null;
-      selected = [];
-      setConnection('Lost the connection to the host. Reconnecting…');
-      scheduleReconnect();
-    });
+      setConnection('The host seems to be away. Waiting for them to come back…');
+    }
   }
 
-  function scheduleReconnect() {
-    clearTimeout(reconnectTimer);
-    reconnectTimer = setTimeout(connectToHost, 3000);
+  function ping() {
+    if (relay) relay.publish(topic('action'), { id: newId(), clientId, name: myName, action: { type: 'ping' } });
   }
 
   // ---------- Actions ----------
@@ -236,8 +260,8 @@
       const result = G.applyAction(state, clientId, action);
       if (!result.ok && result.error) showError(result.error);
       if (result.ok) afterHostChange();
-    } else if (hostConn && hostConn.open) {
-      hostConn.send({ type: 'action', clientId, action });
+    } else if (relay && hostHeardAt && relay.publish(topic('action'), { id: newId(), clientId, name: myName, action })) {
+      // The host answers with a new state, or an error just for us.
     } else {
       showError('Not connected to the host yet.');
     }

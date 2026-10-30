@@ -18,11 +18,20 @@ The person who starts the game is the host. Their browser keeps the game, so if 
 ## How it works
 
 It is a plain web page with no server of its own, so it runs on GitHub Pages.
-Players' browsers connect straight to each other with [PeerJS](https://peerjs.com) (WebRTC); PeerJS's free public service only introduces the two browsers.
-The PeerJS library is included in `vendor/` (MIT licence, see `vendor/peerjs-LICENSE`).
+The host's browser keeps the game. Moves and game updates travel through free public MQTT relays
+(HiveMQ, EMQX and Mosquitto's public test servers) over secure WebSockets, which work on home, school
+and phone networks alike. Every player connects to all three relays at once, so the game keeps working
+as long as both players can reach any one of them. Messages on these public relays are not private,
+so don't put anything secret in your player name.
 
-- `game.js`: the rules (deck, checking sets, scoring, adding rows)
+(An earlier version connected the two browsers directly with WebRTC. That failed between many home
+networks, so it was replaced.)
+
+The MQTT.js library is included in `vendor/` (MIT licence, see `vendor/mqtt-LICENSE.md`).
+
+- `game.js`: the rules (deck, checking sets, scoring, adding rows, hints)
 - `cards.js`: draws the cards
+- `relay.js`: sends messages through the relays
 - `app.js`: the page and the networking
 
 ## Putting it online with GitHub Pages
