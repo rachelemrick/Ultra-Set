@@ -69,7 +69,7 @@
       board: [],
       players: {}, // clientId -> { name, score, online }
       hostId: null,
-      settings: { startCards: BOARD_SIZE, hints: false },
+      settings: { startCards: BOARD_SIZE, hints: true },
       votes: [],     // clientIds who want another row
       hintVotes: [], // clientIds who want a hint
       hint: null,    // { set, shown } or { none: true }

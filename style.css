@@ -131,6 +131,7 @@ input {
 
 #settings { display: grid; gap: 6px; max-width: 420px; margin-bottom: 8px; }
 #settings label { font-weight: 600; }
+#hints-toggle { display: flex; gap: 8px; align-items: center; margin: 4px 0; }
 #settings label.check { font-weight: 400; display: flex; gap: 8px; align-items: center; margin-top: 6px; }
 #settings select { font: inherit; padding: 6px 8px; border-radius: 8px; border: 1px solid var(--card-border); background: #fff; }
 

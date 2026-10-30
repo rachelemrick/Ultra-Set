@@ -92,7 +92,9 @@ for (const size of G.START_SIZES) {
   G.applyAction(h, 'h', { type: 'join', name: 'Host' });
   G.applyAction(h, 'g', { type: 'join', name: 'Guest' });
   G.applyAction(h, 'h', { type: 'deal' });
-  assert.ok(!G.applyAction(h, 'h', { type: 'hint' }).ok, 'hints off by default');
+  assert.ok(h.settings.hints, 'hints on by default');
+  G.applyAction(h, 'h', { type: 'settings', hints: false });
+  assert.ok(!G.applyAction(h, 'h', { type: 'hint' }).ok, 'no hints once turned off');
   G.applyAction(h, 'h', { type: 'settings', hints: true });
   let guard = 0;
   while (!G.findSets(h.board).length && guard++ < 20) { G.applyAction(h, 'h', { type: 'vote' }); G.applyAction(h, 'g', { type: 'vote' }); }

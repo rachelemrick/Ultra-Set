@@ -285,6 +285,7 @@
   $('hint-button').addEventListener('click', () => sendAction({ type: 'hint' }));
   $('start-cards').addEventListener('change', (e) => sendAction({ type: 'settings', startCards: Number(e.target.value) }));
   $('hints-on').addEventListener('change', (e) => sendAction({ type: 'settings', hints: e.target.checked }));
+  $('hints-on-table').addEventListener('change', (e) => sendAction({ type: 'settings', hints: e.target.checked }));
   $('deal-button').addEventListener('click', () => sendAction({ type: 'deal' }));
   $('again-button').addEventListener('click', () => sendAction({ type: 'lobby' }));
   // Two clicks to start over, so a stray click doesn't wipe the scores.
@@ -396,6 +397,9 @@
     $('settings').hidden = !amHost;
     $('start-cards').value = String(state.settings.startCards);
     $('hints-on').checked = state.settings.hints;
+    // The host can also turn hints on or off in the middle of a game.
+    $('hints-toggle').hidden = !amHost;
+    $('hints-on-table').checked = state.settings.hints;
     $('settings-summary').hidden = amHost;
     $('settings-summary').textContent = 'The host is starting with ' + state.settings.startCards + ' cards' +
       (state.settings.hints ? ', with hints allowed.' : ' and no hints.');

@@ -7,7 +7,7 @@ That makes 243 unique cards (3^5).
 
 1. Open the game, type your name and press **Start a new game**.
 2. Copy the invite link and send it to your friend. When they open it and type their name, they appear next to you.
-3. The host picks how many cards go on the table at the start (12 to 24) and whether hints are allowed, then presses **Deal cards**.
+3. The host picks how many cards go on the table at the start (12 to 24) and whether hints are allowed (on unless the host unticks it; the host can also change it during a game), then presses **Deal cards**.
 4. A **set** is three cards where each of the five features (color, shape, number, shading, corner letter) is either all the same or all different. Click three cards to claim a set. Whoever claims it first scores a point, and the cards are replaced.
 5. If nobody can find a set, everyone presses **Can't find a set? Add a row**. When all players have pressed it, three more cards are added.
 6. If hints are on, everyone can press **Hint**. When all players have pressed it, one card from a set gets marked (or the game says there is no set on the table). Asking again marks a second card from the same set.
